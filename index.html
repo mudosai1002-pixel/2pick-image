@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2Pick</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #1a1d27;
+    --panel2: #232734;
+    --border: #333949;
+    --text: #e6e8ee;
+    --muted: #9aa0b0;
+    --accent: #5b8cff;
+    --accent2: #7c5bff;
+    --good: #3ecf8e;
+    --bronze: #c77b4a;
+    --silver: #9fb0c3;
+    --gold: #e3b341;
+    --legend: #d65a8e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+
+  .setup { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+  .setup label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  textarea {
+    width: 100%; min-height: 160px; resize: vertical;
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px; font-size: 13px; font-family: ui-monospace, monospace;
+  }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+  .field { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .field input { width: 64px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px; }
+
+  button {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.1); }
+  button.ghost { background: var(--panel2); border: 1px solid var(--border); color: var(--text); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+
+  .progress { font-size: 14px; color: var(--muted); margin-bottom: 16px; }
+  .progress b { color: var(--text); }
+
+  .reroll-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .reroll-msg { font-size: 12px; color: var(--muted); }
+
+  .sets { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .sets { grid-template-columns: 1fr; } }
+  .set {
+    background: var(--panel); border: 2px solid var(--border); border-radius: 14px; padding: 16px;
+    cursor: pointer; transition: border-color .15s, transform .1s;
+  }
+  .set:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .set-title { font-size: 12px; color: var(--muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: .05em; }
+  .card {
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; margin-bottom: 10px; font-size: 16px; font-weight: 600;
+  }
+  .card:last-child { margin-bottom: 0; }
+  .card .copies { font-size: 11px; color: var(--muted); font-weight: 400; float: right; }
+  .pick-btn { width: 100%; margin-top: 12px; background: var(--accent2); }
+
+  .deck { margin-top: 28px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .deck h2 { font-size: 15px; margin: 0 0 12px; }
+  .deck-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { background: var(--panel2); border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; font-size: 13px; }
+  .chip .n { color: var(--good); font-weight: 700; margin-left: 4px; }
+  .empty { color: var(--muted); font-size: 13px; }
+
+  .deck-stats { margin-bottom: 16px; }
+  .stats-note { color: var(--muted); font-size: 12px; }
+  .curve { display: flex; align-items: flex-end; gap: 6px; height: 120px; margin-top: 6px; }
+  .bar-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; flex: 1; min-width: 0; height: 100%; }
+  .bar { width: 100%; max-width: 38px; background: var(--accent2); border-radius: 4px 4px 0 0; min-height: 2px; }
+  .bar-col.unknown .bar { background: var(--border); }
+  .bar-count { font-size: 11px; color: var(--text); margin-bottom: 2px; min-height: 14px; }
+  .bar-label { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .type-counts { display: flex; gap: 18px; margin-top: 14px; flex-wrap: wrap; }
+  .type-counts .tc { font-size: 13px; color: var(--muted); }
+  .type-counts .tc b { color: var(--text); font-size: 18px; margin-right: 3px; }
+  .stats-title { font-size: 12px; color: var(--muted); letter-spacing: .05em; }
+  .done-banner { background: linear-gradient(90deg, var(--accent), var(--accent2)); padding: 14px; border-radius: 10px; font-weight: 700; text-align: center; margin-bottom: 16px; }
+  .err { color: #ff6b6b; font-size: 13px; margin-top: 10px; }
+  .hidden { display: none; }
+
+  .classes { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .class-btn {
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px; color: var(--text);
+    cursor: pointer; text-align: left; transition: border-color .15s, transform .1s;
+  }
+  .class-btn:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .class-btn .cls-name { font-size: 17px; font-weight: 700; }
+  .class-btn .cls-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .entry { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .entry-label { font-size: 10px; color: var(--muted); letter-spacing: .05em; }
+  .entry-card {
+    display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px;
+  }
+  .rar { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; flex: none; }
+  .rar[data-r="ブロンズ"] { background: var(--bronze); color: #1b1206; }
+  .rar[data-r="シルバー"] { background: var(--silver); color: #11161d; }
+  .rar[data-r="ゴールド"] { background: var(--gold); color: #1d1604; }
+  .rar[data-r="レジェンド"] { background: var(--legend); color: #fff; }
+  .rar[data-r=""] { background: var(--border); color: var(--muted); }
+  .chosen { font-size: 14px; margin-bottom: 12px; }
+  .chosen b { color: var(--accent2); font-size: 16px; }
+  .entrance-box { background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+  .entrance-box .entry-label { margin-bottom: 8px; display: block; }
+</style>
+</head>
+<body>
+<!-- シーズンデータ（シーズンを増やすときは、ここに1行追加するだけ） -->
+<script src="seasons/1st-anniversary.js"></script>
+<div class="wrap">
+  <h1>2Pick</h1>
+
+  <!-- シーズン選択 -->
+  <div class="setup" id="seasonSelect">
+    <label>シーズンを選択してください</label>
+    <div class="classes" id="seasonGrid"></div>
+    <div class="err hidden" id="seasonErr"></div>
+  </div>
+
+  <!-- クラス選択 -->
+  <div class="setup hidden" id="classSelect">
+    <div class="chosen">シーズン: <b id="chosenSeason"></b></div>
+    <label>クラスを選択してください。各クラスの「入場カード2枚」を確認した上で選べます（選んだクラス＋ニュートラルがドラフト対象）</label>
+    <div class="classes" id="classGrid"></div>
+    <div class="row">
+      <button class="ghost" id="backToSeason">シーズン選択に戻る</button>
+    </div>
+    <div class="err hidden" id="classErr"></div>
+  </div>
+
+  <!-- ドラフト画面 -->
+  <div id="game" class="hidden">
+    <div class="progress"><b id="gameClass"></b> ・ ラウンド <b id="curRound">1</b> / <b id="totRound">19</b> ・ デッキ枚数 <b id="deckCount">0</b></div>
+    <div class="done-banner hidden" id="doneBanner">🎉 ドラフト完了！下のデッキが完成しました。</div>
+
+    <div class="reroll-bar" id="rerollBar">
+      <button class="ghost" id="rerollRoundBtn">🔄 このラウンドを引き直す（残り <b id="rerollLeft">2</b> 回）</button>
+      <span class="reroll-msg" id="rerollMsg"></span>
+    </div>
+
+    <div class="sets" id="sets"></div>
+
+    <div class="deck">
+      <h2>📦 デッキ <span id="deckTotal" class="sub" style="display:inline"></span></h2>
+      <div class="deck-stats" id="deckStats"></div>
+      <div class="deck-grid" id="deckGrid"><span class="empty">まだカードがありません</span></div>
+      <div class="row">
+        <button class="ghost hidden" id="restartBtn">最初からやり直す</button>
+        <button class="ghost hidden" id="exportBtn">デッキをコピー</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  let pool = [];        // 全カード名
+  let deck = {};        // {カード名: 採用枚数}
+  let totalRounds = 19;
+  let maxCopies = 3;
+  let round = 0;        // 0-indexed の現在ラウンド
+  let currentSets = []; // [[c1,c2],[c3,c4]]
+  let offers = {};      // クラス名 → 入場カード [{name,rarity},{name,rarity}]
+  let startingCards = [];// 選択クラスの入場カード
+  let rerollsLeft = 2;  // ドラフト中の引き直し残り回数
+  let selectedSeason = null;
+  let CARDS = {};       // 選択シーズンのカードデータ（クラス名 → [{n,r}]）
+  let EXCLUDE = {};     // 選択シーズンの入場除外（クラス名 → [カード名]）
+
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // 採用上限に達していない（=今後も出せる）カード
+  function eligibleCards() {
+    return pool.filter(c => (deck[c] || 0) < maxCopies);
+  }
+
+  // コメント行(//始まり)・空行を除いてカード名だけ取り出す
+  function parseCards(text) {
+    return text.split('\n')
+      .map(s => s.trim())
+      .filter(s => s && !s.startsWith('//'));
+  }
+
+  // クラス選択 → 即ドラフト開始（入場2枚をデッキに投入してラウンド1へ）
+  function beginDraft() {
+    totalRounds = 19;
+    maxCopies = 3;
+    deck = {};
+    round = 0;
+    rerollsLeft = 2;
+    // 入場カード2枚を初期デッキに投入
+    startingCards.forEach(c => { deck[c.name] = (deck[c.name] || 0) + 1; });
+    $('totRound').textContent = totalRounds;
+    $('classSelect').classList.add('hidden');
+    $('game').classList.remove('hidden');
+    $('doneBanner').classList.add('hidden');
+    $('exportBtn').classList.add('hidden');
+    $('restartBtn').classList.add('hidden');   // ドラフト中はやり直し不可
+    $('rerollBar').classList.remove('hidden');
+    nextRound();
+    renderDeck();
+  }
+
+  function showErr(el, msg) {
+    el.textContent = msg;
+    el.classList.remove('hidden');
+  }
+
+  // 4枚を抽選して提示。exclude のカードは除外。配れたら true
+  function dealRound(exclude) {
+    const ex = exclude || [];
+    const elig = eligibleCards().filter(c => !ex.includes(c));
+    if (elig.length < 4) return false;
+    const picked = shuffle(elig).slice(0, 4);
+    currentSets = [[picked[0], picked[1]], [picked[2], picked[3]]];
+    renderSets();
+    return true;
+  }
+
+  function nextRound() {
+    if (round >= totalRounds) return finish();
+    $('curRound').textContent = round + 1;
+    $('rerollMsg').textContent = '';
+    if (!dealRound()) {
+      $('sets').innerHTML = '<div class="err">提示できるカードが4枚未満になりました。残り採用可能カードが不足しています。</div>';
+    }
+    updateRerollUI();
+  }
+
+  // このラウンドを引き直す（直前に提示した4枚は除外）
+  function rerollRound() {
+    if (rerollsLeft <= 0) return;
+    const shown = currentSets.flat();
+    const remaining = eligibleCards().filter(c => !shown.includes(c));
+    if (remaining.length < 4) {
+      $('rerollMsg').textContent = '除外すると4枚そろわないため引き直せません。';
+      return;
+    }
+    rerollsLeft--;
+    dealRound(shown);
+    $('rerollMsg').textContent = '引き直しました。';
+    updateRerollUI();
+  }
+
+  function updateRerollUI() {
+    $('rerollLeft').textContent = rerollsLeft;
+    $('rerollRoundBtn').disabled = rerollsLeft <= 0;
+  }
+
+  function renderSets() {
+    const wrap = $('sets');
+    wrap.innerHTML = '';
+    currentSets.forEach((set, i) => {
+      const el = document.createElement('div');
+      el.className = 'set';
+      el.innerHTML =
+        '<div class="set-title">セット ' + (i + 1) + '</div>' +
+        set.map(c =>
+          '<div class="card">' + escapeHtml(c) +
+          '<span class="copies">所持 ' + (deck[c] || 0) + '/' + maxCopies + '</span></div>'
+        ).join('') +
+        '<button class="pick-btn">このセットを選ぶ</button>';
+      el.addEventListener('click', () => choose(i));
+      wrap.appendChild(el);
+    });
+  }
+
+  function choose(i) {
+    const set = currentSets[i];
+    set.forEach(c => { deck[c] = (deck[c] || 0) + 1; });
+    round++;
+    renderDeck();
+    nextRound();
+  }
+
+  function renderDeck() {
+    const total = Object.values(deck).reduce((a, b) => a + b, 0);
+    $('deckCount').textContent = total;
+    $('deckTotal').textContent = '（' + total + ' 枚）';
+    const grid = $('deckGrid');
+    // 枚数順ではなく、カードリスト（プール）の並び順で表示
+    const entries = Object.entries(deck).sort((a, b) => pool.indexOf(a[0]) - pool.indexOf(b[0]));
+    if (entries.length === 0) {
+      grid.innerHTML = '<span class="empty">まだカードがありません</span>';
+      return;
+    }
+    grid.innerHTML = entries.map(([c, n]) =>
+      '<span class="chip">' + escapeHtml(c) + '<span class="n">×' + n + '</span></span>'
+    ).join('');
+    renderDeckStats();
+  }
+
+  // デッキのコストカーブ（棒グラフ）と種類別枚数を表示
+  function renderDeckStats() {
+    const el = $('deckStats');
+    const costMap = {};      // cost(数値) → 枚数
+    const typeCount = { 'フォロワー': 0, 'スペル': 0, 'アミュレット': 0 };
+    let unknownCost = 0, unknownType = 0, maxCost = 0, hasCost = false;
+
+    Object.entries(deck).forEach(([name, n]) => {
+      const info = cardInfo[name] || {};
+      if (typeof info.cost === 'number') {
+        costMap[info.cost] = (costMap[info.cost] || 0) + n;
+        if (info.cost > maxCost) maxCost = info.cost;
+        hasCost = true;
+      } else { unknownCost += n; }
+      if (info.type && typeCount[info.type] !== undefined) typeCount[info.type] += n;
+      else unknownType += n;
+    });
+
+    if (Object.values(deck).reduce((a, b) => a + b, 0) === 0) { el.innerHTML = ''; return; }
+
+    // コストカーブ（〜1 / 2〜7 / 8〜 でまとめる）
+    let curveHtml = '';
+    if (hasCost) {
+      const BUCKETS = [
+        { label: '〜1', lo: 0, hi: 1 },
+        { label: '2', lo: 2, hi: 2 },
+        { label: '3', lo: 3, hi: 3 },
+        { label: '4', lo: 4, hi: 4 },
+        { label: '5', lo: 5, hi: 5 },
+        { label: '6', lo: 6, hi: 6 },
+        { label: '7', lo: 7, hi: 7 },
+        { label: '8〜', lo: 8, hi: Infinity },
+      ];
+      const bucketCounts = BUCKETS.map(b => {
+        let s = 0;
+        Object.keys(costMap).forEach(k => { const c = +k; if (c >= b.lo && c <= b.hi) s += costMap[k]; });
+        return s;
+      });
+      const peak = Math.max(1, ...bucketCounts, unknownCost);
+      let cols = BUCKETS.map((b, i) => {
+        const n = bucketCounts[i];
+        const h = Math.round((n / peak) * 100);
+        return '<div class="bar-col"><div class="bar-count">' + (n || '') + '</div>' +
+          '<div class="bar" style="height:' + h + '%"></div>' +
+          '<div class="bar-label">' + b.label + '</div></div>';
+      }).join('');
+      if (unknownCost > 0) {
+        const h = Math.round((unknownCost / peak) * 100);
+        cols += '<div class="bar-col unknown"><div class="bar-count">' + unknownCost + '</div>' +
+          '<div class="bar" style="height:' + h + '%"></div><div class="bar-label">?</div></div>';
+      }
+      curveHtml = '<div class="stats-title">コストカーブ</div><div class="curve">' + cols + '</div>';
+    } else {
+      curveHtml = '<div class="stats-note">コスト情報が未設定です（編集ツールで入力するとここに棒グラフが出ます）。</div>';
+    }
+
+    // 種類別枚数
+    const tc = [];
+    ['フォロワー', 'スペル', 'アミュレット'].forEach(t => {
+      tc.push('<span class="tc"><b>' + typeCount[t] + '</b>' + t + '</span>');
+    });
+    if (unknownType > 0) tc.push('<span class="tc"><b>' + unknownType + '</b>種類未設定</span>');
+    const typeHtml = '<div class="type-counts">' + tc.join('') + '</div>';
+
+    el.innerHTML = curveHtml + typeHtml;
+  }
+
+  function finish() {
+    $('sets').innerHTML = '';
+    $('rerollBar').classList.add('hidden');
+    $('doneBanner').classList.remove('hidden');
+    $('exportBtn').classList.remove('hidden');
+    $('restartBtn').classList.remove('hidden');  // デッキ完成後はやり直し可
+  }
+
+  function exportDeck() {
+    const lines = Object.entries(deck)
+      .sort((a, b) => pool.indexOf(a[0]) - pool.indexOf(b[0]))
+      .map(([c, n]) => n + 'x ' + c);
+    const text = lines.join('\n');
+    navigator.clipboard.writeText(text).then(
+      () => { $('exportBtn').textContent = 'コピーしました！'; setTimeout(() => $('exportBtn').textContent = 'デッキをコピー', 1500); },
+      () => alert(text)
+    );
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  }
+
+  const NEUTRAL = 'ニュートラル';
+  let selectedClass = null;
+
+  // CARD_DATA の各クラス値を {name, rarity, cost, type} 配列に正規化
+  // （旧: 改行テキスト形式／[{n,r}]／[{n,r,cost,type}] のどれでも動く）
+  function classCardEntries(value) {
+    if (Array.isArray(value)) {
+      return value.map(it => {
+        if (Array.isArray(it)) return { name: it[0], rarity: it[1] || '', cost: null, type: '' };
+        return { name: it.n, rarity: it.r || '', cost: (typeof it.cost === 'number' ? it.cost : null), type: it.type || '' };
+      }).filter(c => c.name);
+    }
+    if (typeof value === 'string') return parseCards(value).map(n => ({ name: n, rarity: '', cost: null, type: '' }));
+    return [];
+  }
+
+  // カード名 → {rarity, cost, type} のマップ（選択シーズン分）
+  let cardInfo = {};
+  function buildCardInfo() {
+    cardInfo = {};
+    Object.keys(CARDS).forEach(cls => {
+      classCardEntries(CARDS[cls]).forEach(c => { cardInfo[c.name] = c; });
+    });
+  }
+
+  function classCardNames(value) {
+    return classCardEntries(value).map(c => c.name);
+  }
+
+  // 選択クラス＋ニュートラルの {name,rarity}（名前重複は除去）
+  function classPoolEntries(name) {
+    const all = [...classCardEntries(CARDS[name]), ...classCardEntries(CARDS[NEUTRAL])];
+    const byName = {};
+    all.forEach(c => { if (!byName[c.name]) byName[c.name] = c; });
+    return Object.values(byName);
+  }
+
+  // 入場カード2枚を抽選: レジェンド2枚 もしくは レジェンド+ゴールド
+  // 抽選元はそのクラス固有カードのみ（ニュートラルは含めない）。
+  // config.js の OFFER_EXCLUDE に書かれたカードは入場提示から除外（本編には出る）。
+  function makeOffer(name) {
+    const excl = new Set((EXCLUDE && EXCLUDE[name]) || []);
+    const all = classCardEntries(CARDS[name]).filter(c => !excl.has(c.name));
+    const legends = shuffle(all.filter(c => c.rarity === 'レジェンド'));
+    const golds = shuffle(all.filter(c => c.rarity === 'ゴールド'));
+    const twoLegends = Math.random() < 0.5;
+    if (twoLegends && legends.length >= 2) return [legends[0], legends[1]];
+    if (legends.length >= 1 && golds.length >= 1) return [legends[0], golds[0]];
+    if (legends.length >= 2) return [legends[0], legends[1]];
+    // フォールバック（レジェンド/ゴールドが足りない場合）
+    return shuffle(all).slice(0, 2);
+  }
+
+  function rarBadge(c) {
+    return '<span class="rar" data-r="' + escapeHtml(c.rarity) + '">' + escapeHtml(c.rarity || '—') + '</span>';
+  }
+  function entryCardHtml(c) {
+    return '<div class="entry-card">' + rarBadge(c) + escapeHtml(c.name) + '</div>';
+  }
+
+  // クラスを選んだとき: 入場カードを確定し、プールを作って即ドラフト開始
+  function selectClass(name) {
+    selectedClass = name;
+    startingCards = offers[name] || makeOffer(name);
+    pool = classPoolEntries(name).map(c => c.name); // 並び順 = カードリスト順
+    $('gameClass').textContent = name;
+    beginDraft();
+  }
+
+  // シーズンを選んだとき: そのシーズンのデータを有効化してクラス選択へ
+  function selectSeason(id) {
+    const s = window.SEASONS[id];
+    selectedSeason = id;
+    CARDS = s.cards || {};
+    EXCLUDE = s.offerExclude || {};
+    buildCardInfo();
+    $('chosenSeason').textContent = s.name || id;
+    $('seasonSelect').classList.add('hidden');
+    $('classSelect').classList.remove('hidden');
+    buildClassSelect();
+  }
+
+  // シーズン選択ボタンを生成
+  function buildSeasonSelect() {
+    if (typeof window.SEASONS !== 'object' || !window.SEASONS || Object.keys(window.SEASONS).length === 0) {
+      return showErr($('seasonErr'), 'シーズンデータが読み込めませんでした。seasons/ 内のファイルと index.html の <script> 行を確認してください。');
+    }
+    const grid = $('seasonGrid');
+    grid.innerHTML = '';
+    Object.keys(window.SEASONS).forEach(id => {
+      const s = window.SEASONS[id];
+      const classCount = Object.keys(s.cards || {}).filter(c => c !== NEUTRAL).length;
+      const btn = document.createElement('button');
+      btn.className = 'class-btn';
+      btn.innerHTML =
+        '<div class="cls-name">' + escapeHtml(s.name || id) + '</div>' +
+        '<div class="cls-meta">' + classCount + 'クラス</div>';
+      btn.addEventListener('click', () => selectSeason(id));
+      grid.appendChild(btn);
+    });
+  }
+
+  function backToSeasonSelect() {
+    $('game').classList.add('hidden');
+    $('classSelect').classList.add('hidden');
+    $('seasonSelect').classList.remove('hidden');
+  }
+
+  // クラス選択ボタンを生成（ニュートラルは選択肢に出さない）。入場カードも抽選して表示
+  function buildClassSelect() {
+    const grid = $('classGrid');
+    grid.innerHTML = '';
+    offers = {};
+    const neutralCount = classCardNames(CARDS[NEUTRAL]).length;
+    Object.keys(CARDS).forEach(name => {
+      if (name === NEUTRAL) return;
+      const n = classCardNames(CARDS[name]).length;
+      const offer = makeOffer(name);
+      offers[name] = offer;
+      const btn = document.createElement('button');
+      btn.className = 'class-btn';
+      btn.innerHTML =
+        '<div class="cls-name">' + escapeHtml(name) + '</div>' +
+        '<div class="cls-meta">' + n + '枚 ＋ ニュートラル' + neutralCount + '枚</div>' +
+        '<div class="entry"><span class="entry-label">入場カード</span>' +
+        offer.map(entryCardHtml).join('') + '</div>';
+      btn.addEventListener('click', () => selectClass(name));
+      grid.appendChild(btn);
+    });
+  }
+
+  function backToClassSelect() {
+    $('game').classList.add('hidden');
+    $('classSelect').classList.remove('hidden');
+    buildClassSelect(); // 新しいドラフト用に入場カードを引き直す
+  }
+
+  buildSeasonSelect();
+
+  $('backToSeason').addEventListener('click', backToSeasonSelect);
+  $('restartBtn').addEventListener('click', backToClassSelect);
+  $('rerollRoundBtn').addEventListener('click', rerollRound);
+  $('exportBtn').addEventListener('click', exportDeck);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>カード情報設定ツール</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #1a1d27;
+    --panel2: #232734;
+    --border: #333949;
+    --text: #e6e8ee;
+    --muted: #9aa0b0;
+    --accent: #5b8cff;
+    --bronze: #c77b4a;
+    --silver: #9fb0c3;
+    --gold: #e3b341;
+    --legend: #d65a8e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.5;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic", sans-serif;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px 80px; }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 10; background: rgba(15,17,23,.96);
+    backdrop-filter: blur(6px); border-bottom: 1px solid var(--border);
+    padding: 14px 0; margin-bottom: 16px;
+  }
+  .topbar .inner { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+  h1 { font-size: 18px; margin: 0 0 8px; }
+  .bar-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .progress { font-size: 13px; color: var(--muted); }
+  .progress b { color: var(--text); }
+  .spacer { flex: 1; }
+
+  button {
+    background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button.active-filter { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .fillbar { font-size: 12px; color: var(--muted); margin-top: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .fillbar .sep { opacity: .5; margin: 0 4px; }
+  .fillbar .opt { padding: 4px 9px; }
+
+  .class-sec { margin-bottom: 24px; }
+  .class-head {
+    display: flex; align-items: baseline; gap: 10px; padding: 8px 0;
+    border-bottom: 1px solid var(--border); margin-bottom: 8px;
+    font-size: 16px; font-weight: 700;
+  }
+  .class-head .cnt { font-size: 12px; font-weight: 400; color: var(--muted); }
+
+  .card-row {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px; border-radius: 8px;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+  }
+  .card-row:hover { background: var(--panel); }
+  .card-row.is-set.filter-hide { display: none; }
+  .card-name { flex: 1 1 220px; font-size: 14px; font-weight: 600; }
+  .card-row.is-set .card-name { color: var(--muted); font-weight: 400; }
+
+  .ctrls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .grp { display: flex; align-items: center; gap: 3px; }
+  .grp .lbl { font-size: 11px; color: var(--muted); margin-right: 3px; }
+
+  .opt {
+    border: 1px solid var(--border); background: transparent; color: var(--muted);
+    border-radius: 6px; padding: 4px 8px; font-size: 12px; cursor: pointer; line-height: 1.1;
+  }
+  .opt:hover { color: var(--text); }
+  .opt.on { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 700; }
+  .cost-btn { min-width: 28px; text-align: center; padding: 4px 0; }
+  /* レアリティは色分け */
+  .opt[data-r="ブロンズ"].on { background: var(--bronze); color: #1b1206; border-color: var(--bronze); }
+  .opt[data-r="シルバー"].on { background: var(--silver); color: #11161d; border-color: var(--silver); }
+  .opt[data-r="ゴールド"].on { background: var(--gold); color: #1d1604; border-color: var(--gold); }
+  .opt[data-r="レジェンド"].on { background: var(--legend); color: #fff; border-color: var(--legend); }
+
+  .export { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-top: 16px; }
+  .export textarea {
+    width: 100%; min-height: 140px; margin-top: 10px; resize: vertical;
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px; font-family: ui-monospace, monospace; font-size: 12px;
+  }
+  .err { color: #ff6b6b; font-size: 13px; }
+  .hint { color: var(--muted); font-size: 12px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<script src="cards.js"></script>
+
+<div class="topbar">
+  <div class="inner">
+    <h1>🎴 カード情報設定ツール（レアリティ・コスト・種類）</h1>
+    <div class="bar-row">
+      <span class="progress"><b id="setCount">0</b> / <b id="totalCount">0</b> 完了（3項目すべて設定済み）</span>
+      <span class="spacer"></span>
+      <button id="filterBtn">未完了のみ表示</button>
+      <button id="copyBtn">テキストをコピー</button>
+      <button class="primary" id="downloadBtn">cards.js をダウンロード</button>
+    </div>
+    <div class="fillbar">
+      未設定をまとめて：
+      <span class="lbl">種類</span>
+      <button class="opt" data-fill-field="type" data-fill="フォロワー">フォロワー</button>
+      <button class="opt" data-fill-field="type" data-fill="スペル">スペル</button>
+      <button class="opt" data-fill-field="type" data-fill="アミュレット">アミュレット</button>
+      <span class="sep">｜</span>
+      <span class="lbl">レアリティ</span>
+      <button class="opt" data-fill-field="r" data-fill="ブロンズ">ブロンズ</button>
+      <button class="opt" data-fill-field="r" data-fill="シルバー">シルバー</button>
+      <button class="opt" data-fill-field="r" data-fill="ゴールド">ゴールド</button>
+      <button class="opt" data-fill-field="r" data-fill="レジェンド">レジェンド</button>
+      <span class="hint">（表示中で、その項目が未設定のカードに適用）</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div id="loader" class="hidden" style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">
+    <p style="margin:0 0 10px;">cards.js を自動で読み込めませんでした（ファイルを直接ダブルクリックで開いた場合に起こります）。<br>下のボタンから、同じフォルダにある <b>cards.js</b> を選んでください。</p>
+    <input type="file" id="fileInput" accept=".js,.txt">
+  </div>
+  <div id="err" class="err"></div>
+  <div id="list"></div>
+
+  <div class="export">
+    <div class="bar-row">
+      <b>cards.js の中身</b>
+      <span class="hint">— ダウンロードして既存の cards.js と差し替え、編集後の内容をシーズンファイルへ反映します</span>
+    </div>
+    <textarea id="output" readonly></textarea>
+  </div>
+</div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const RARITIES = ["ブロンズ", "シルバー", "ゴールド", "レジェンド"];
+  const TYPES = ["フォロワー", "スペル", "アミュレット"];
+  const COSTS = ["0","1","2","3","4","5","6","7","8","9","10","11"];
+  const costLabel = (v) => v === "11" ? "11〜" : v;
+  const LS_KEY = "cardData_v1";
+
+  // CARD_DATA の各クラス値を {name, r, cost, type} 配列に正規化
+  function normalize(value) {
+    const toEntry = (it) => {
+      if (Array.isArray(it)) return { name: it[0], r: it[1] || "", cost: "", type: "" };
+      const cost = (typeof it.cost === "number") ? String(it.cost) : (it.cost ? String(it.cost) : "");
+      return { name: it.n, r: it.r || "", cost: cost, type: it.type || "" };
+    };
+    if (Array.isArray(value)) return value.map(toEntry);
+    if (typeof value === "string") {
+      return value.split("\n").map(s => s.trim())
+        .filter(s => s && !s.startsWith("//"))
+        .map(name => ({ name, r: "", cost: "", type: "" }));
+    }
+    return [];
+  }
+
+  // state[クラス][カード名] = { r, cost, type }
+  const order = {};
+  const state = {};
+
+  function loadData() {
+    Object.keys(order).forEach(k => delete order[k]);
+    Object.keys(state).forEach(k => delete state[k]);
+    Object.keys(window.CARD_DATA).forEach(cls => {
+      order[cls] = [];
+      state[cls] = {};
+      normalize(window.CARD_DATA[cls]).forEach(({ name, r, cost, type }) => {
+        order[cls].push(name);
+        state[cls][name] = { r: r || "", cost: cost || "", type: type || "" };
+      });
+    });
+    // localStorage を重ねる（cards.js に無いカードは無視）
+    try {
+      const saved = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
+      Object.keys(saved).forEach(cls => {
+        if (!state[cls]) return;
+        Object.keys(saved[cls]).forEach(name => {
+          if (name in state[cls]) {
+            const s = saved[cls][name] || {};
+            state[cls][name] = { r: s.r || "", cost: s.cost || "", type: s.type || "" };
+          }
+        });
+      });
+    } catch (e) {}
+  }
+
+  function save() { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+
+  function esc(s) {
+    return s.replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+  }
+  function cssAttr(s) { return s.replace(/(["\\])/g, "\\$1"); }
+
+  function isComplete(c) { return !!(c.r && c.type && c.cost !== ""); }
+
+  function setField(cls, name, field, val) {
+    const c = state[cls][name];
+    c[field] = (c[field] === val) ? "" : val; // 同じものを再クリックで解除
+    save();
+    refreshRow(cls, name);
+    updateCounts();
+    updateOutput();
+  }
+
+  function refreshRow(cls, name) {
+    const row = document.querySelector('.card-row[data-cls="' + cssAttr(cls) + '"][data-name="' + cssAttr(name) + '"]');
+    if (!row) return;
+    const c = state[cls][name];
+    row.classList.toggle("is-set", isComplete(c));
+    row.querySelectorAll(".opt[data-field]").forEach(b => {
+      b.classList.toggle("on", b.dataset.val === c[b.dataset.field]);
+    });
+  }
+
+  function optBtn(field, val, cur, extraAttr, label) {
+    const on = (cur === val) ? " on" : "";
+    return '<button class="opt' + on + '"' + (extraAttr || "") +
+      ' data-field="' + field + '" data-val="' + esc(val) + '">' + esc(label != null ? label : val) + '</button>';
+  }
+
+  function build() {
+    const list = $("list");
+    list.innerHTML = "";
+    Object.keys(order).forEach(cls => {
+      const sec = document.createElement("div");
+      sec.className = "class-sec";
+      sec.innerHTML = '<div class="class-head">' + esc(cls) +
+        ' <span class="cnt" data-cls="' + esc(cls) + '"></span></div>';
+      order[cls].forEach(name => {
+        const c = state[cls][name];
+        const row = document.createElement("div");
+        row.className = "card-row" + (isComplete(c) ? " is-set" : "");
+        row.dataset.cls = cls;
+        row.dataset.name = name;
+        row.innerHTML =
+          '<span class="card-name">' + esc(name) + '</span>' +
+          '<span class="ctrls">' +
+            '<span class="grp"><span class="lbl">コスト</span>' +
+              COSTS.map(v => optBtn("cost", v, c.cost, "", costLabel(v))).join("") +
+            '</span>' +
+            '<span class="grp"><span class="lbl">種類</span>' +
+              TYPES.map(v => optBtn("type", v, c.type)).join("") +
+            '</span>' +
+            '<span class="grp"><span class="lbl">R</span>' +
+              RARITIES.map(v => optBtn("r", v, c.r, ' data-r="' + v + '"')).join("") +
+            '</span>' +
+          '</span>';
+        // cost ボタンに cost-btn クラスを付与
+        row.querySelectorAll('.opt[data-field="cost"]').forEach(b => b.classList.add("cost-btn"));
+        row.querySelectorAll(".opt[data-field]").forEach(b => {
+          b.addEventListener("click", () => setField(cls, name, b.dataset.field, b.dataset.val));
+        });
+        sec.appendChild(row);
+      });
+      list.appendChild(sec);
+    });
+    applyFilter();
+    updateCounts();
+    updateOutput();
+  }
+
+  let filterUnset = false;
+  function applyFilter() {
+    document.querySelectorAll(".card-row").forEach(row => row.classList.toggle("filter-hide", filterUnset));
+  }
+
+  function updateCounts() {
+    let total = 0, done = 0;
+    Object.keys(order).forEach(cls => {
+      let cDone = 0;
+      order[cls].forEach(name => {
+        total++;
+        if (isComplete(state[cls][name])) { done++; cDone++; }
+      });
+      const cntEl = document.querySelector('.class-head .cnt[data-cls="' + cssAttr(cls) + '"]');
+      if (cntEl) cntEl.textContent = cDone + " / " + order[cls].length;
+    });
+    $("setCount").textContent = done;
+    $("totalCount").textContent = total;
+  }
+
+  function buildFileText() {
+    let out = "// ===== カードリスト（クラス別・レアリティ／コスト／種類付き） =====\n";
+    out += "// このファイルは rarity-editor.html（カード情報設定ツール）の作業用です。\n";
+    out += "// 形式: { n: \"カード名\", r: \"レアリティ\", cost: コスト数値, type: \"種類\" }\n";
+    out += "//   r    = ブロンズ・シルバー・ゴールド・レジェンド\n";
+    out += "//   cost = 0〜10（未設定は null）\n";
+    out += "//   type = フォロワー・スペル・アミュレット\n\n";
+    out += "window.CARD_DATA = {\n\n";
+    Object.keys(order).forEach(cls => {
+      out += "  " + JSON.stringify(cls) + ": [\n";
+      order[cls].forEach(name => {
+        const c = state[cls][name];
+        const costOut = (c.cost === "") ? "null" : String(parseInt(c.cost, 10));
+        out += "    { n: " + JSON.stringify(name) +
+          ", r: " + JSON.stringify(c.r || "") +
+          ", cost: " + costOut +
+          ", type: " + JSON.stringify(c.type || "") + " },\n";
+      });
+      out += "  ],\n\n";
+    });
+    out += "};\n";
+    return out;
+  }
+
+  function updateOutput() { $("output").value = buildFileText(); }
+
+  // ===== イベント =====
+  $("filterBtn").addEventListener("click", () => {
+    filterUnset = !filterUnset;
+    $("filterBtn").classList.toggle("active-filter", filterUnset);
+    $("filterBtn").textContent = filterUnset ? "すべて表示" : "未完了のみ表示";
+    applyFilter();
+  });
+
+  document.querySelectorAll("[data-fill]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const field = btn.dataset.fillField, val = btn.dataset.fill;
+      document.querySelectorAll(".card-row").forEach(row => {
+        const cls = row.dataset.cls, name = row.dataset.name;
+        const visible = !filterUnset || !row.classList.contains("filter-hide");
+        if (visible && state[cls][name][field] === "") {
+          state[cls][name][field] = val;
+          refreshRow(cls, name);
+        }
+      });
+      save(); applyFilter(); updateCounts(); updateOutput();
+    });
+  });
+
+  $("copyBtn").addEventListener("click", () => {
+    navigator.clipboard.writeText(buildFileText()).then(
+      () => { $("copyBtn").textContent = "コピーしました！"; setTimeout(() => $("copyBtn").textContent = "テキストをコピー", 1500); },
+      () => { $("output").select(); }
+    );
+  });
+
+  $("downloadBtn").addEventListener("click", () => {
+    const blob = new Blob([buildFileText()], { type: "text/javascript" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "cards.js"; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  function init() {
+    $("loader").classList.add("hidden");
+    $("err").textContent = "";
+    loadData();
+    build();
+  }
+
+  if (typeof window.CARD_DATA === "object" && window.CARD_DATA) {
+    init();
+  } else {
+    $("loader").classList.remove("hidden");
+    $("fileInput").addEventListener("change", (ev) => {
+      const file = ev.target.files[0];
+      if (!file) return;
+      const fr = new FileReader();
+      fr.onload = (e) => {
+        try {
+          (0, eval)(e.target.result);
+          if (typeof window.CARD_DATA === "object" && window.CARD_DATA) init();
+          else $("err").textContent = "選択したファイルから CARD_DATA を読み取れませんでした。";
+        } catch (err) { $("err").textContent = "cards.js の読み込みでエラー: " + err.message; }
+      };
+      fr.readAsText(file);
+    });
+  }
+})();
+</script>
+</body>
+</html>
