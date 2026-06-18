@@ -73,10 +73,14 @@
   .card .copies { font-size: 11px; color: var(--muted); font-weight: 400; float: right; }
   /* カード画像（画像があれば表示、無ければカード名にフォールバック） */
   .card-art { display: block; border-radius: 6px; }
+  /* 同じセット内の2枚を横並び・各自半分サイズ */
+  .set-cards { display: flex; gap: 10px; }
+  .set-cards .card { flex: 1 1 0; min-width: 0; margin-bottom: 0; }
   .card .card-art { width: 100%; height: auto; }
   .card .card-name-text { font-size: 16px; font-weight: 600; }
   .entry-card .card-art { height: 44px; width: auto; border-radius: 4px; }
-  .chip .card-art { height: 30px; width: auto; vertical-align: middle; border-radius: 3px; margin-right: 2px; }
+  /* デッキのサムネは従来の2倍（30→60px） */
+  .chip .card-art { height: 60px; width: auto; vertical-align: middle; border-radius: 4px; margin-right: 2px; }
   .pick-btn { width: 100%; margin-top: 12px; background: var(--accent2); }
 
   .deck { margin-top: 28px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
@@ -288,10 +292,12 @@
       el.className = 'set';
       el.innerHTML =
         '<div class="set-title">セット ' + (i + 1) + '</div>' +
+        '<div class="set-cards">' +
         set.map(c =>
           '<div class="card">' + cardVisual(c) +
           '<span class="copies">所持 ' + (deck[c] || 0) + '/' + maxCopies + '</span></div>'
         ).join('') +
+        '</div>' +
         '<button class="pick-btn">このセットを選ぶ</button>';
       el.addEventListener('click', () => choose(i));
       wrap.appendChild(el);
