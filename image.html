@@ -122,7 +122,8 @@
     background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 6px; font-size: 11px;
   }
   .entry-card .entry-art { width: 100%; height: auto; border-radius: 5px; display: block; }
-  .entry-card .entry-nm { color: var(--muted); display: flex; align-items: center; gap: 4px; line-height: 1.2; font-weight: 600; }
+  .entry-card .entry-rar { line-height: 1; }
+  .entry-card .entry-nm { color: var(--text); font-size: 11px; line-height: 1.25; font-weight: 600; word-break: break-word; }
   .rar { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; flex: none; }
   .rar[data-r="ブロンズ"] { background: var(--bronze); color: #1b1206; }
   .rar[data-r="シルバー"] { background: var(--silver); color: #11161d; }
@@ -491,7 +492,7 @@
   function entryCardHtml(c) {
     const info = cardInfo[c.name] || {};
     const art = info.img ? '<img class="entry-art" src="' + escapeHtml(info.img) + '" alt="' + escapeHtml(c.name) + '" loading="lazy">' : '';
-    return '<div class="entry-card">' + art + '<div class="entry-nm">' + rarBadge(c) + escapeHtml(c.name) + '</div></div>';
+    return '<div class="entry-card">' + art + '<div class="entry-rar">' + rarBadge(c) + '</div><div class="entry-nm">' + escapeHtml(c.name) + '</div></div>';
   }
 
   // クラスを選んだとき: 入場カードを確定し、プールを作って即ドラフト開始

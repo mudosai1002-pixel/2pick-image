@@ -38,7 +38,8 @@
   .entry-label { font-size:10px; color:var(--muted); display:block; margin-bottom:4px; }
   .entry-card { flex:1; }
   .entry-card img { width:100%; height:auto; border-radius:5px; display:block; }
-  .entry-card .nm { font-size:11px; color:var(--muted); margin-top:2px; }
+  .entry-card .entry-rar { margin-top:3px; line-height:1; }
+  .entry-card .nm { font-size:11px; color:var(--text); font-weight:600; line-height:1.25; margin-top:2px; word-break:break-word; }
   .rar { font-size:10px; font-weight:700; padding:1px 6px; border-radius:4px; }
   .rar[data-r="ブロンズ"]{ background:var(--bronze); color:#1b1206; }
   .rar[data-r="シルバー"]{ background:var(--silver); color:#11161d; }
@@ -222,7 +223,7 @@
         '<div class="entry"><div style="flex:1"><span class="entry-label">入場カード</span></div></div>'+
         '<div class="entry">'+offer.map(c=>
           '<div class="entry-card">'+(c.img?'<img src="'+esc(c.img)+'" alt="'+esc(c.n)+'" loading="lazy">':'')+
-          '<div class="nm">'+rarBadge(c.r)+' '+esc(c.n)+'</div></div>').join('')+'</div>';
+          '<div class="entry-rar">'+rarBadge(c.r)+'</div><div class="nm">'+esc(c.n)+'</div></div>').join('')+'</div>';
       btn.addEventListener('click',()=>selectClass(cls));
       grid.appendChild(btn);
     });
