@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2Pick</title>
+<style>
+  :root {
+    --bg:#0f1117; --panel:#1a1d27; --panel2:#232734; --border:#333949;
+    --text:#e6e8ee; --muted:#9aa0b0; --accent:#5b8cff; --accent2:#7c5bff; --good:#3ecf8e;
+    --bronze:#c77b4a; --silver:#9fb0c3; --gold:#e3b341; --legend:#d65a8e;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); line-height:1.5;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic",sans-serif; }
+  .wrap { max-width:900px; margin:0 auto; padding:24px 16px 80px; }
+  h1 { font-size:22px; margin:0 0 12px; }
+  .sub { color:var(--muted); font-size:13px; }
+
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:20px; }
+  .panel > label { display:block; font-size:13px; color:var(--muted); margin-bottom:10px; }
+
+  button { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 18px; font-size:14px; font-weight:600; cursor:pointer; }
+  button:hover { filter:brightness(1.1); }
+  button.ghost { background:var(--panel2); border:1px solid var(--border); color:var(--text); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
+  .pick-item { background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:14px; color:var(--text);
+    cursor:pointer; text-align:left; transition:border-color .15s, transform .1s; }
+  .pick-item:hover { border-color:var(--accent); transform:translateY(-2px); }
+  .pick-item .big { font-size:17px; font-weight:700; }
+  .pick-item .meta { font-size:11px; color:var(--muted); margin-top:2px; }
+
+  .classes { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+  .entry { margin-top:10px; display:flex; gap:6px; }
+  .entry-label { font-size:10px; color:var(--muted); display:block; margin-bottom:4px; }
+  .entry-card { flex:1; }
+  .entry-card img { width:100%; height:auto; border-radius:5px; display:block; }
+  .entry-card .nm { font-size:11px; color:var(--muted); margin-top:2px; }
+  .rar { font-size:10px; font-weight:700; padding:1px 6px; border-radius:4px; }
+  .rar[data-r="ブロンズ"]{ background:var(--bronze); color:#1b1206; }
+  .rar[data-r="シルバー"]{ background:var(--silver); color:#11161d; }
+  .rar[data-r="ゴールド"]{ background:var(--gold); color:#1d1604; }
+  .rar[data-r="レジェンド"]{ background:var(--legend); color:#fff; }
+  .rar[data-r=""]{ background:var(--border); color:var(--muted); }
+
+  .progress { font-size:14px; color:var(--muted); margin-bottom:14px; }
+  .progress b { color:var(--text); }
+  .round-rarity { display:inline-block; padding:1px 8px; border-radius:5px; font-weight:700; font-size:12px; }
+
+  .reroll-bar { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+  .reroll-msg { font-size:12px; color:var(--muted); }
+
+  .sets { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:640px){ .sets{ grid-template-columns:1fr; } }
+  .set { background:var(--panel); border:2px solid var(--border); border-radius:14px; padding:14px; cursor:pointer; transition:border-color .15s,transform .1s; }
+  .set:hover { border-color:var(--accent); transform:translateY(-2px); }
+  .set-title { font-size:12px; color:var(--muted); margin-bottom:10px; }
+  .set-cards { display:flex; gap:10px; }
+  .set-cards .card { flex:1 1 0; min-width:0; position:relative; }
+  .set-cards .card img { width:100%; height:auto; border-radius:6px; display:block; }
+  .set-cards .card .copies { font-size:11px; color:var(--muted); text-align:right; }
+  .card-name-text { font-size:14px; font-weight:600; }
+  .pick-btn { width:100%; margin-top:12px; background:var(--accent2); }
+
+  .deck { margin-top:24px; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; }
+  .deck h2 { font-size:15px; margin:0 0 12px; }
+  .deck-stats { margin-bottom:16px; }
+  .stats-note { color:var(--muted); font-size:12px; }
+  .stats-title { font-size:12px; color:var(--muted); letter-spacing:.05em; }
+  .curve { display:flex; align-items:flex-end; gap:6px; height:110px; margin-top:6px; }
+  .bar-col { display:flex; flex-direction:column; align-items:center; justify-content:flex-end; flex:1; min-width:0; height:100%; }
+  .bar { width:100%; max-width:38px; background:var(--accent2); border-radius:4px 4px 0 0; min-height:2px; }
+  .bar-col.unknown .bar { background:var(--border); }
+  .bar-count { font-size:11px; color:var(--text); margin-bottom:2px; min-height:14px; }
+  .bar-label { font-size:11px; color:var(--muted); margin-top:4px; }
+  .type-counts { display:flex; gap:18px; margin-top:12px; flex-wrap:wrap; }
+  .type-counts .tc { font-size:13px; color:var(--muted); }
+  .type-counts .tc b { color:var(--text); font-size:18px; margin-right:3px; }
+  .deck-grid { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { display:flex; align-items:center; gap:2px; background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:3px 8px 3px 3px; font-size:13px; }
+  .chip img { height:60px; width:auto; border-radius:4px; }
+  .chip .n { color:var(--good); font-weight:700; }
+  .empty { color:var(--muted); font-size:13px; }
+  .done-banner { background:linear-gradient(90deg,var(--accent),var(--accent2)); padding:14px; border-radius:10px; font-weight:700; text-align:center; margin-bottom:16px; }
+  .err { color:#ff6b6b; font-size:13px; margin-top:10px; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<script src="pool.js"></script>
+<div class="wrap">
+  <h1>2Pick <span class="sub" id="headMeta"></span></h1>
+
+  <!-- 弾選択 -->
+  <div class="panel" id="expSelect">
+    <label>弾を選択してください（選択弾＋直近3弾＝4弾分／下限はベーシック が対象になります）</label>
+    <div class="grid" id="expGrid"></div>
+    <div class="err hidden" id="expErr"></div>
+  </div>
+
+  <!-- クラス選択 -->
+  <div class="panel hidden" id="classSelect">
+    <div class="sub" id="chosenExp" style="margin-bottom:10px;"></div>
+    <label>クラスを選択してください。入場カード2枚を確認して選べます（選んだクラス＋ニュートラルがドラフト対象）</label>
+    <div class="classes" id="classGrid"></div>
+    <div class="row"><button class="ghost" id="backToExp">弾選択に戻る</button></div>
+    <div class="err hidden" id="classErr"></div>
+  </div>
+
+  <!-- ゲーム -->
+  <div id="game" class="hidden">
+    <div class="progress"><b id="gClass"></b> ・ <b id="gExp"></b> ・ 順目 <b id="curRound">1</b>/19 ・ レアリティ <span class="round-rarity" id="roundRar"></span> ・ デッキ <b id="deckCount">0</b></div>
+    <div class="done-banner hidden" id="doneBanner">🎉 ドラフト完了！下のデッキが完成しました。</div>
+    <div class="reroll-bar" id="rerollBar">
+      <button class="ghost" id="rerollBtn">🔄 引き直す（残り <b id="rerollLeft">2</b> 回）</button>
+      <span class="reroll-msg" id="rerollMsg"></span>
+    </div>
+    <div class="sets" id="sets"></div>
+    <div class="deck">
+      <h2>📦 デッキ <span id="deckTotal" class="sub" style="display:inline"></span></h2>
+      <div class="deck-stats" id="deckStats"></div>
+      <div class="deck-grid" id="deckGrid"><span class="empty">まだカードがありません</span></div>
+      <div class="row"><button class="ghost" id="restartBtn">最初からやり直す</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const NEUTRAL = 'ニュートラル';
+  const TOTAL_ROUNDS = 19;
+  const MAX_COPIES = 3;
+  const PACK_NAMES = { 0:'ベーシック', 1:'伝説の幕開け', 2:'インフィニティ・エボルヴ', 3:'絶傑の継承者', 4:'蒼空の六竜', 5:'花酔遊戯', 6:'アポカリプス・パクト', 7:'神殺し・アナテマ', 8:'クロニクル・オブ・デスティニー' };
+  // 順目ごとのレアリティ（1..19）
+  const RARITY_BY_ORDER = ['ブロンズ','シルバー','ブロンズ','シルバー','ブロンズ','ゴールド','ブロンズ','シルバー','ブロンズ','シルバー','ブロンズ','シルバー','ブロンズ','ゴールド','ブロンズ','シルバー','ブロンズ','シルバー','レジェンド'];
+
+  let CARDS = {};            // pool.js の CARD_POOL
+  let selectedExp = null, selectedClass = null;
+  let pool = [];             // 選択クラス＋ニュートラル・窓内（{n,r,cost,type,img,pack}）
+  let cardInfo = {};         // 名前 → カード情報
+  let offers = {};           // クラス → 入場2枚
+  let startingCards = [];
+  let deck = {};             // 名前 → 枚数
+  let round = 0;             // 0-index
+  let rerollsLeft = 2;
+  let currentSets = [];
+
+  function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+  function esc(s){ return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+  // 窓内の弾集合: 選択弾N → max(0,N-3)..N
+  function packsInWindow(N){ const s=new Set(); for(let p=Math.max(0,N-3); p<=N; p++) s.add(p); return s; }
+
+  function classCards(cls){ return (CARDS[cls]||[]).map(c=>({ n:c.n, r:c.r||'', cost:(typeof c.cost==='number'?c.cost:null), type:c.type||'', img:c.img||'', pack:c.pack })); }
+
+  // 選択クラス＋ニュートラル・窓内
+  function poolFor(cls, N){
+    const win=packsInWindow(N);
+    const all=[...classCards(cls), ...classCards(NEUTRAL)].filter(c=>win.has(c.pack));
+    const seen={}; const out=[];
+    all.forEach(c=>{ if(!seen[c.n]){ seen[c.n]=1; out.push(c); } });
+    return out;
+  }
+  // 入場用: クラスのみ・窓内
+  function offerPoolFor(cls, N){ const win=packsInWindow(N); return classCards(cls).filter(c=>win.has(c.pack)); }
+
+  // 入場2枚: レジェンド2 もしくは レジェンド+ゴールド（クラスのみ）
+  function makeOffer(cls, N){
+    const all=offerPoolFor(cls,N);
+    const legs=shuffle(all.filter(c=>c.r==='レジェンド'));
+    const golds=shuffle(all.filter(c=>c.r==='ゴールド'));
+    if(Math.random()<0.5 && legs.length>=2) return [legs[0],legs[1]];
+    if(legs.length>=1 && golds.length>=1) return [legs[0],golds[0]];
+    if(legs.length>=2) return [legs[0],legs[1]];
+    return shuffle(all).slice(0,2); // フォールバック（レアリティ未入力時など）
+  }
+
+  function cardVisual(name){
+    const info=cardInfo[name]||{};
+    if(info.img) return '<img src="'+esc(info.img)+'" alt="'+esc(name)+'" title="'+esc(name)+'" loading="lazy">';
+    return '<div class="card-name-text">'+esc(name)+'</div>';
+  }
+  function rarBadge(r){ return '<span class="rar" data-r="'+esc(r||'')+'">'+esc(r||'—')+'</span>'; }
+
+  // ===== 弾選択 =====
+  function buildExpSelect(){
+    if(typeof CARDS!=='object' || !CARDS){ $('expErr').textContent='pool.js が読み込めませんでした。'; $('expErr').classList.remove('hidden'); return; }
+    // データに存在する最大弾（0除く）
+    let maxPack=0; Object.keys(CARDS).forEach(cls=>(CARDS[cls]||[]).forEach(c=>{ if(c.pack>maxPack) maxPack=c.pack; }));
+    const grid=$('expGrid'); grid.innerHTML='';
+    for(let n=1;n<=maxPack;n++){
+      const btn=document.createElement('button'); btn.className='pick-item';
+      btn.innerHTML='<div class="big">第'+n+'弾</div><div class="meta">'+(PACK_NAMES[n]||'')+'</div>';
+      btn.addEventListener('click',()=>selectExp(n));
+      grid.appendChild(btn);
+    }
+    if(maxPack===0){ $('expErr').textContent='プレイ可能な弾がありません（データ未投入）。'; $('expErr').classList.remove('hidden'); }
+  }
+  function selectExp(n){
+    selectedExp=n;
+    $('chosenExp').textContent='弾: 第'+n+'弾'+(PACK_NAMES[n]?'「'+PACK_NAMES[n]+'」':'')+'（対象: '+[...packsInWindow(n)].sort((a,b)=>a-b).map(p=>p===0?'ベーシック':'第'+p+'弾').join('・')+'）';
+    $('expSelect').classList.add('hidden');
+    $('classSelect').classList.remove('hidden');
+    buildClassSelect();
+  }
+
+  // ===== クラス選択 =====
+  function buildClassSelect(){
+    const grid=$('classGrid'); grid.innerHTML=''; offers={};
+    Object.keys(CARDS).forEach(cls=>{
+      if(cls===NEUTRAL) return;
+      const n=offerPoolFor(cls,selectedExp).length;
+      const offer=makeOffer(cls,selectedExp); offers[cls]=offer;
+      // 入場表示用に一時cardInfo
+      const btn=document.createElement('button'); btn.className='pick-item';
+      btn.innerHTML='<div class="big">'+esc(cls)+'</div><div class="meta">クラス '+n+'枚 ＋ ニュートラル</div>'+
+        '<div class="entry"><div style="flex:1"><span class="entry-label">入場カード</span></div></div>'+
+        '<div class="entry">'+offer.map(c=>
+          '<div class="entry-card">'+(c.img?'<img src="'+esc(c.img)+'" alt="'+esc(c.n)+'" loading="lazy">':'')+
+          '<div class="nm">'+rarBadge(c.r)+' '+esc(c.n)+'</div></div>').join('')+'</div>';
+      btn.addEventListener('click',()=>selectClass(cls));
+      grid.appendChild(btn);
+    });
+  }
+  function backToExp(){ $('game').classList.add('hidden'); $('classSelect').classList.add('hidden'); $('expSelect').classList.remove('hidden'); }
+
+  function selectClass(cls){
+    selectedClass=cls;
+    startingCards=offers[cls]||makeOffer(cls,selectedExp);
+    pool=poolFor(cls,selectedExp);
+    cardInfo={}; pool.forEach(c=>cardInfo[c.n]=c);
+    // 入場カードもcardInfoに（クラス限定なのでpoolに含まれるはずだが保険）
+    startingCards.forEach(c=>{ if(!cardInfo[c.n]) cardInfo[c.n]=c; });
+    deck={}; round=0; rerollsLeft=2;
+    startingCards.forEach(c=>{ deck[c.n]=(deck[c.n]||0)+1; });
+    $('gClass').textContent=cls;
+    $('gExp').textContent='第'+selectedExp+'弾';
+    $('classSelect').classList.add('hidden');
+    $('game').classList.remove('hidden');
+    $('doneBanner').classList.add('hidden');
+    $('rerollBar').classList.remove('hidden');
+    renderDeck(); nextRound();
+  }
+
+  // ===== ドラフト =====
+  function eligible(rarity, exclude){
+    const ex=exclude||[];
+    return pool.filter(c=> (deck[c.n]||0)<MAX_COPIES && !ex.includes(c.n) && (rarity? c.r===rarity : true));
+  }
+  function dealRound(rarity, exclude){
+    const elig=eligible(rarity, exclude);
+    if(elig.length<4) return false;
+    const picked=shuffle(elig).slice(0,4);
+    currentSets=[[picked[0].n,picked[1].n],[picked[2].n,picked[3].n]];
+    renderSets(); return true;
+  }
+  function nextRound(){
+    if(round>=TOTAL_ROUNDS) return finish();
+    const rarity=RARITY_BY_ORDER[round];
+    $('curRound').textContent=round+1;
+    $('roundRar').textContent=rarity; $('roundRar').setAttribute('style','');
+    $('roundRar').className='round-rarity'; $('roundRar').setAttribute('data-r',rarity);
+    $('roundRar').style.background='var(--'+({'ブロンズ':'bronze','シルバー':'silver','ゴールド':'gold','レジェンド':'legend'}[rarity])+')';
+    $('roundRar').style.color = (rarity==='レジェンド')?'#fff':'#11161d';
+    $('rerollMsg').textContent='';
+    if(!dealRound(rarity, [])){
+      $('sets').innerHTML='<div class="err">レアリティ「'+rarity+'」のカードが4枚未満です。エディタでレアリティを入力してください（この順目は提示できません）。</div>';
+    }
+    updateRerollUI();
+  }
+  function renderSets(){
+    const wrap=$('sets'); wrap.innerHTML='';
+    currentSets.forEach((set,i)=>{
+      const el=document.createElement('div'); el.className='set';
+      el.innerHTML='<div class="set-title">セット '+(i+1)+'</div>'+
+        '<div class="set-cards">'+set.map(n=>'<div class="card">'+cardVisual(n)+'<div class="copies">所持 '+(deck[n]||0)+'/'+MAX_COPIES+'</div></div>').join('')+'</div>'+
+        '<button class="pick-btn">このセットを選ぶ</button>';
+      el.addEventListener('click',()=>choose(i));
+      wrap.appendChild(el);
+    });
+  }
+  function choose(i){
+    currentSets[i].forEach(n=>{ deck[n]=(deck[n]||0)+1; });
+    round++; renderDeck(); nextRound();
+  }
+  function rerollRound(){
+    if(rerollsLeft<=0) return;
+    const shown=currentSets.flat();
+    const elig=eligible(null, shown); // 全レアリティ・直前4枚除外
+    if(elig.length<4){ $('rerollMsg').textContent='引き直せるカードが足りません。'; return; }
+    rerollsLeft--;
+    dealRound(null, shown);
+    $('rerollMsg').textContent='引き直しました（全レアリティから提示）。';
+    updateRerollUI();
+  }
+  function updateRerollUI(){ $('rerollLeft').textContent=rerollsLeft; $('rerollBtn').disabled=rerollsLeft<=0; }
+
+  // ===== デッキ =====
+  function renderDeck(){
+    const total=Object.values(deck).reduce((a,b)=>a+b,0);
+    $('deckCount').textContent=total; $('deckTotal').textContent='（'+total+' 枚）';
+    const grid=$('deckGrid');
+    const entries=Object.entries(deck).sort((a,b)=> pool.findIndex(c=>c.n===a[0]) - pool.findIndex(c=>c.n===b[0]));
+    if(!entries.length){ grid.innerHTML='<span class="empty">まだカードがありません</span>'; renderDeckStats(); return; }
+    grid.innerHTML=entries.map(([n,c])=>'<span class="chip">'+cardVisual(n)+'<span class="n">×'+c+'</span></span>').join('');
+    renderDeckStats();
+  }
+  function renderDeckStats(){
+    const el=$('deckStats');
+    if(Object.values(deck).reduce((a,b)=>a+b,0)===0){ el.innerHTML=''; return; }
+    const costMap={}, typeCount={'フォロワー':0,'スペル':0,'アミュレット':0}; let unknownCost=0, unknownType=0, hasCost=false;
+    Object.entries(deck).forEach(([n,cnt])=>{
+      const info=cardInfo[n]||{};
+      if(typeof info.cost==='number'){ costMap[info.cost]=(costMap[info.cost]||0)+cnt; hasCost=true; } else unknownCost+=cnt;
+      if(info.type && typeCount[info.type]!==undefined) typeCount[info.type]+=cnt; else unknownType+=cnt;
+    });
+    let curve='';
+    if(hasCost){
+      const B=[{l:'〜1',lo:0,hi:1},{l:'2',lo:2,hi:2},{l:'3',lo:3,hi:3},{l:'4',lo:4,hi:4},{l:'5',lo:5,hi:5},{l:'6',lo:6,hi:6},{l:'7',lo:7,hi:7},{l:'8〜',lo:8,hi:Infinity}];
+      const counts=B.map(b=>{ let s=0; Object.keys(costMap).forEach(k=>{const c=+k; if(c>=b.lo&&c<=b.hi)s+=costMap[k];}); return s; });
+      const peak=Math.max(1,...counts,unknownCost);
+      let cols=B.map((b,i)=>{ const h=Math.round(counts[i]/peak*100); return '<div class="bar-col"><div class="bar-count">'+(counts[i]||'')+'</div><div class="bar" style="height:'+h+'%"></div><div class="bar-label">'+b.l+'</div></div>'; }).join('');
+      if(unknownCost>0){ const h=Math.round(unknownCost/peak*100); cols+='<div class="bar-col unknown"><div class="bar-count">'+unknownCost+'</div><div class="bar" style="height:'+h+'%"></div><div class="bar-label">?</div></div>'; }
+      curve='<div class="stats-title">コストカーブ</div><div class="curve">'+cols+'</div>';
+    } else curve='<div class="stats-note">コスト情報が未設定です（エディタで入力するとカーブが出ます）。</div>';
+    const tc=['フォロワー','スペル','アミュレット'].map(t=>'<span class="tc"><b>'+typeCount[t]+'</b>'+t+'</span>');
+    if(unknownType>0) tc.push('<span class="tc"><b>'+unknownType+'</b>種類未設定</span>');
+    el.innerHTML=curve+'<div class="type-counts">'+tc.join('')+'</div>';
+  }
+  function finish(){ $('sets').innerHTML=''; $('rerollBar').classList.add('hidden'); $('doneBanner').classList.remove('hidden'); }
+
+  // ===== 起動 =====
+  if(typeof window.CARD_POOL==='object' && window.CARD_POOL){ CARDS=window.CARD_POOL; buildExpSelect(); }
+  else { $('expErr').textContent='pool.js が読み込めませんでした。index.html と同じフォルダに pool.js があるか確認してください。'; $('expErr').classList.remove('hidden'); }
+
+  $('backToExp').addEventListener('click',backToExp);
+  $('restartBtn').addEventListener('click',backToExp);
+  $('rerollBtn').addEventListener('click',rerollRound);
+})();
+</script>
+</body>
+</html>
