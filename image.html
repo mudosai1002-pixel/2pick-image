@@ -321,8 +321,14 @@
     $('deckCount').textContent = total;
     $('deckTotal').textContent = '（' + total + ' 枚）';
     const grid = $('deckGrid');
-    // 枚数順ではなく、カードリスト（プール）の並び順で表示
-    const entries = Object.entries(deck).sort((a, b) => pool.indexOf(a[0]) - pool.indexOf(b[0]));
+    // コスト順（同コストはニュートラル→クラスカード、その中はプール順）
+    const costOf = name => { const c = cardInfo[name]; return (c && typeof c.cost === 'number') ? c.cost : 99; };
+    const neuRank = name => neutralNames.has(name) ? 0 : 1;
+    const entries = Object.entries(deck).sort((a, b) => {
+      const ca = costOf(a[0]), cb = costOf(b[0]); if (ca !== cb) return ca - cb;
+      const na = neuRank(a[0]), nb = neuRank(b[0]); if (na !== nb) return na - nb;
+      return pool.indexOf(a[0]) - pool.indexOf(b[0]);
+    });
     if (entries.length === 0) {
       grid.innerHTML = '<span class="empty">まだカードがありません</span>';
       return;
@@ -441,11 +447,13 @@
 
   // カード名 → {rarity, cost, type, img} のマップ（選択シーズン分）
   let cardInfo = {};
+  let neutralNames = new Set();
   function buildCardInfo() {
     cardInfo = {};
     Object.keys(CARDS).forEach(cls => {
       classCardEntries(CARDS[cls]).forEach(c => { cardInfo[c.name] = c; });
     });
+    neutralNames = new Set(classCardNames(CARDS[NEUTRAL]));
   }
 
   // カードの見た目: 画像があれば <img>、無ければカード名テキスト

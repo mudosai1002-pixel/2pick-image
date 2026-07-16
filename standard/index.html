@@ -144,6 +144,7 @@
   let selectedExp = null, selectedClass = null;
   let pool = [];             // 選択クラス＋ニュートラル・窓内（{n,r,cost,type,img,pack}）
   let cardInfo = {};         // 名前 → カード情報
+  let neutralNames = new Set(); // ニュートラルのカード名
   let offers = {};           // クラス → 入場2枚
   let startingCards = [];
   let deck = {};             // 名前 → 枚数
@@ -235,6 +236,7 @@
     startingCards=offers[cls]||makeOffer(cls,selectedExp);
     pool=poolFor(cls,selectedExp);
     cardInfo={}; pool.forEach(c=>cardInfo[c.n]=c);
+    neutralNames=new Set(classCards(NEUTRAL).map(c=>c.n));
     // 入場カードもcardInfoに（クラス限定なのでpoolに含まれるはずだが保険）
     startingCards.forEach(c=>{ if(!cardInfo[c.n]) cardInfo[c.n]=c; });
     deck={}; round=0; rerollsLeft=2;
@@ -306,7 +308,13 @@
     const total=Object.values(deck).reduce((a,b)=>a+b,0);
     $('deckCount').textContent=total; $('deckTotal').textContent='（'+total+' 枚）';
     const grid=$('deckGrid');
-    const entries=Object.entries(deck).sort((a,b)=> pool.findIndex(c=>c.n===a[0]) - pool.findIndex(c=>c.n===b[0]));
+    const costOf=n=>{ const c=cardInfo[n]; return (c&&typeof c.cost==='number')?c.cost:99; };
+    const neuRank=n=>neutralNames.has(n)?0:1; // ニュートラルを先に
+    const entries=Object.entries(deck).sort((a,b)=>{
+      const ca=costOf(a[0]), cb=costOf(b[0]); if(ca!==cb) return ca-cb;
+      const na=neuRank(a[0]), nb=neuRank(b[0]); if(na!==nb) return na-nb;
+      return pool.findIndex(c=>c.n===a[0]) - pool.findIndex(c=>c.n===b[0]);
+    });
     if(!entries.length){ grid.innerHTML='<span class="empty">まだカードがありません</span>'; renderDeckStats(); return; }
     grid.innerHTML=entries.map(([n,c])=>'<span class="chip">'+cardVisual(n)+'<span class="n">×'+c+'</span></span>').join('');
     renderDeckStats();
