@@ -255,10 +255,29 @@
     const ex=exclude||[];
     return pool.filter(c=> (deck[c.n]||0)<MAX_COPIES && !ex.includes(c.n) && (rarity? c.r===rarity : true));
   }
+  const NEUTRAL_PROB=0.086; // 1枚ごとにニュートラルが提示される確率
+  // 各枠を独立に「8.6%でニュートラル / 91.4%でクラス」判定し、その群から均等に選ぶ（重複なし）
+  function pickFour(elig){
+    const neu=elig.filter(c=>neutralNames.has(c.n));
+    const cls=elig.filter(c=>!neutralNames.has(c.n));
+    const used=new Set(); const picked=[];
+    for(let i=0;i<4;i++){
+      const nAvail=neu.filter(c=>!used.has(c.n));
+      const cAvail=cls.filter(c=>!used.has(c.n));
+      if(!nAvail.length && !cAvail.length) break;
+      let group;
+      if(nAvail.length && cAvail.length) group=(Math.random()<NEUTRAL_PROB)?nAvail:cAvail;
+      else group=nAvail.length?nAvail:cAvail;
+      const c=group[Math.floor(Math.random()*group.length)];
+      used.add(c.n); picked.push(c);
+    }
+    return picked;
+  }
   function dealRound(rarity, exclude){
     const elig=eligible(rarity, exclude);
     if(elig.length<4) return false;
-    const picked=shuffle(elig).slice(0,4);
+    const picked=pickFour(elig);
+    if(picked.length<4) return false;
     currentSets=[[picked[0].n,picked[1].n],[picked[2].n,picked[3].n]];
     renderSets(); return true;
   }
