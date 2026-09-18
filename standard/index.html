@@ -87,6 +87,11 @@
   .empty { color:var(--muted); font-size:13px; }
   .done-banner { background:linear-gradient(90deg,var(--accent),var(--accent2)); padding:14px; border-radius:10px; font-weight:700; text-align:center; margin-bottom:16px; }
   .err { color:#ff6b6b; font-size:13px; margin-top:10px; }
+  .reroll-mode { background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin:10px 0 14px; }
+  .reroll-mode .switch { display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:700; font-size:14px; }
+  .reroll-mode .switch input { width:18px; height:18px; accent-color:var(--accent); cursor:pointer; }
+  .reroll-mode-desc { color:var(--muted); font-size:12px; margin-top:6px; line-height:1.5; }
+  .reroll-adj-note { color:var(--accent); font-size:12px; font-weight:700; margin-top:4px; }
   .hidden { display:none; }
 </style>
 </head>
@@ -99,6 +104,13 @@
   <!-- 弾選択 -->
   <div class="panel" id="expSelect">
     <label>弾を選択してください（選択弾＋直近3弾＝4弾分／下限はベーシック が対象になります）</label>
+    <div class="reroll-mode">
+      <label class="switch">
+        <input type="checkbox" id="rerollAdjustToggle">
+        <span>リロール調整モード</span>
+      </label>
+      <div class="reroll-mode-desc">ONにすると、弾ごとの環境に合わせてクラス別に再抽選回数を変更します（OFFは全クラス一律2回）。</div>
+    </div>
     <div class="grid" id="expGrid"></div>
     <div class="err hidden" id="expErr"></div>
   </div>
@@ -137,10 +149,27 @@
   const TOTAL_ROUNDS = 19;
   const MAX_COPIES = 3;
   const PACK_NAMES = { 0:'ベーシック', 1:'伝説の幕開け', 2:'インフィニティ・エボルヴ', 3:'絶傑の継承者', 4:'蒼空の六竜', 5:'花酔遊戯', 6:'アポカリプス・パクト', 7:'神殺し・アナテマ', 8:'クロニクル・オブ・デスティニー', 9:'アズヴォルト・レヴナント' };
+  const DEFAULT_REROLLS = 2;
+  // リロール調整モードON時の、弾×クラス別リロール回数（未記載は DEFAULT_REROLLS=2）
+  const REROLL_ADJUST = {
+    2: { 'エルフ':5, 'ビショップ':5 },
+    3: { 'ウィッチ':6, 'ビショップ':4, 'エルフ':4 },
+    4: { 'エルフ':3, 'ウィッチ':5, 'ビショップ':3, 'ロイヤル':3 },
+    5: { 'エルフ':5, 'ロイヤル':5, 'ウィッチ':5, 'ナイトメア':3, 'ビショップ':7, 'ネメシス':5 },
+    6: { 'ウィッチ':5, 'ビショップ':4, 'エルフ':3, 'ロイヤル':3 },
+    7: { 'エルフ':6, 'ウィッチ':5, 'ナイトメア':1, 'ビショップ':8 },
+    8: { 'ウィッチ':7, 'ビショップ':7, 'エルフ':7, 'ドラゴン':5, 'ロイヤル':1 },
+    9: { 'ロイヤル':1, 'ナイトメア':1 }
+  };
+  function rerollsFor(cls, N){
+    if(!rerollAdjustMode) return DEFAULT_REROLLS;
+    const m=REROLL_ADJUST[N]; return (m && typeof m[cls]==='number') ? m[cls] : DEFAULT_REROLLS;
+  }
   // 順目ごとのレアリティ（1..19）
   const RARITY_BY_ORDER = ['ブロンズ','シルバー','ブロンズ','シルバー','ブロンズ','ゴールド','ブロンズ','シルバー','ブロンズ','シルバー','ブロンズ','シルバー','ブロンズ','ゴールド','ブロンズ','シルバー','ブロンズ','シルバー','レジェンド'];
 
   let CARDS = {};            // pool.js の CARD_POOL
+  let rerollAdjustMode = false; // リロール調整モード（弾×クラス別の回数を使う）
   let selectedExp = null, selectedClass = null;
   let pool = [];             // 選択クラス＋ニュートラル・窓内（{n,r,cost,type,img,pack}）
   let cardInfo = {};         // 名前 → カード情報
@@ -220,7 +249,9 @@
       const offer=makeOffer(cls,selectedExp); offers[cls]=offer;
       // 入場表示用に一時cardInfo
       const btn=document.createElement('button'); btn.className='pick-item';
-      btn.innerHTML='<div class="big">'+esc(cls)+'</div><div class="meta">クラス '+n+'枚 ＋ ニュートラル</div>'+
+      const rr=rerollsFor(cls, selectedExp);
+      const rrNote=rerollAdjustMode ? '<div class="reroll-adj-note">再抽選 '+rr+' 回'+(rr!==DEFAULT_REROLLS?'（調整）':'')+'</div>' : '';
+      btn.innerHTML='<div class="big">'+esc(cls)+'</div><div class="meta">クラス '+n+'枚 ＋ ニュートラル</div>'+rrNote+
         '<div class="entry"><div style="flex:1"><span class="entry-label">入場カード</span></div></div>'+
         '<div class="entry">'+offer.map(c=>
           '<div class="entry-card">'+(c.img?'<img src="'+esc(c.img)+'" alt="'+esc(c.n)+'" loading="lazy">':'')+
@@ -239,7 +270,7 @@
     neutralNames=new Set(classCards(NEUTRAL).map(c=>c.n));
     // 入場カードもcardInfoに（クラス限定なのでpoolに含まれるはずだが保険）
     startingCards.forEach(c=>{ if(!cardInfo[c.n]) cardInfo[c.n]=c; });
-    deck={}; round=0; rerollsLeft=2;
+    deck={}; round=0; rerollsLeft=rerollsFor(cls, selectedExp);
     startingCards.forEach(c=>{ deck[c.n]=(deck[c.n]||0)+1; });
     $('gClass').textContent=cls;
     $('gExp').textContent='第'+selectedExp+'弾';
@@ -365,6 +396,16 @@
   // ===== 起動 =====
   if(typeof window.CARD_POOL==='object' && window.CARD_POOL){ CARDS=window.CARD_POOL; buildExpSelect(); }
   else { $('expErr').textContent='pool.js が読み込めませんでした。index.html と同じフォルダに pool.js があるか確認してください。'; $('expErr').classList.remove('hidden'); }
+
+  // リロール調整モードのトグル（前回の選択を復元）
+  try { rerollAdjustMode = localStorage.getItem('rerollAdjustMode')==='1'; } catch(e){}
+  $('rerollAdjustToggle').checked = rerollAdjustMode;
+  $('rerollAdjustToggle').addEventListener('change', (e)=>{
+    rerollAdjustMode = e.target.checked;
+    try { localStorage.setItem('rerollAdjustMode', rerollAdjustMode?'1':'0'); } catch(e2){}
+    // クラス選択中なら表示を更新
+    if(!$('classSelect').classList.contains('hidden')) buildClassSelect();
+  });
 
   $('backToExp').addEventListener('click',backToExp);
   $('restartBtn').addEventListener('click',backToExp);
